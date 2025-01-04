@@ -1,93 +1,190 @@
-# :package_description
+# Readme
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
-<!--delete-->
----
-This repo can be used to scaffold a Laravel package. Follow these steps to get started:
+This package can be used for filtering eloquent using query string. 
 
-1. Press the "Use this template" button at the top of this repo to create a new repo with the contents of this skeleton.
-2. Run "php ./configure.php" to run a script that will replace all placeholders throughout all the files.
-3. Have fun creating your package.
-4. If you need help creating a package, consider picking up our <a href="https://laravelpackage.training">Laravel Package Training</a> video course.
----
-<!--/delete-->
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
-
-## Support us
-
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/:package_name.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/:package_name)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
-
-## Installation
-
-You can install the package via composer:
-
-```bash
-composer require :vendor_slug/:package_slug
+```
+// URL example: https://example.com?name=John&email=gmail.com
 ```
 
-You can publish and run the migrations with:
-
-```bash
-php artisan vendor:publish --tag=":package_slug-migrations"
-php artisan migrate
-```
-
-You can publish the config file with:
-
-```bash
-php artisan vendor:publish --tag=":package_slug-config"
-```
-
-This is the contents of the published config file:
+First you have to use `QueryFilters` trait in your model.
 
 ```php
-return [
+
+use LaravelWay\QueryFilters\Traits\QueryFilters;
+
+class User extends Model
+{
+     use QueryFilters;
+}
+```
+
+Then you can use `addQueryFilters` scope on your model to add any filters you want.
+
+1. Using array of filters
+
+```php
+use LaravelWay\QueryFilters\Filters\EqualFilter;
+use LaravelWay\QueryFilters\Filters\ContainsFilter;
+
+User::query()
+    ->addQueryFilters(filters: [
+        'name' => EqualFilter::class,
+        'email' => ContainsFilter::class
+    ]);
+```
+
+In this case it will filter by name parameter and email parameter from query string. 
+
+2. You can call `addQueryFilters` multiple times. It will merge all filters together. 
+
+```php
+use LaravelWay\QueryFilters\Filters\EqualFilter;
+use LaravelWay\QueryFilters\Filters\ContainsFilter;
+
+User::query()
+    ->addQueryFilters(filters: [
+        'name' => EqualFilter::class,
+    ])
+    ->addQueryFilters(filters: [
+        'email' => ContainsFilter::class,
+    ]);
+```
+
+3. You can use callbacks as filters.
+
+```php
+User::query()
+    ->addQueryFilters(filters: [
+        'name' => function (Builder $builder, string $key, mixed $value, mixed $params = null) {
+            $builder->where($key, $value);
+        },
+    ]);
+```
+
+4. You can use filters classes to define all filters there. In that case class must be extended from `FiltersAbstract` class.  
+
+```php
+
+use LaravelWay\QueryFilters\Filters\EqualFilter;
+use LaravelWay\QueryFilters\Filters\ContainsFilter;
+
+class UserFilters extends FiltersAbstract 
+{
+    
+    /** @var array<string, class-string|callable|array{0: class-string, 1: mixed}> */
+    public array $filters = [
+        'name' => EqualFilter::class,
+        'email' => ContainsFilter::class,
+    ];
+    
+    /**
+     * @param  Builder<Model>  $builder
+     */
+    public function filterSearch(Builder $builder, string $key, mixed $value, mixed $params = null): void {
+        $builder->whereLike('name', "%$value%")->whereLike('email', "%$value%");
+    }
+}
+
+// and then you can use this class for filtering
+User::query()->addQueryFilters(filters: UserFilters::class);
+```
+
+As you can see, you can define standard filters in `$filters` property as array, 
+or you can define custom functions which are prefixed with `filter` word. 
+In our case `filterSearch` is using as filtering function, it means that it will filter
+by query parameter `search`. 
+
+There are some standard filtering classes you can use for filtering. 
+
+### EqualFilter
+
+it filters for exact value.
+
+```php
+public array $filters = [
+    'name' => EqualFilter::class,
 ];
+
+// ?name=John - it will search all rows which are equals to John.
+// it can be case-insensitive if table column's collation ends with _ci suffix. 
 ```
 
-Optionally, you can publish the views using
+### ContainsFilter
 
-```bash
-php artisan vendor:publish --tag=":package_slug-views"
-```
-
-## Usage
+It filters rows which are contains that value in any part of string.
 
 ```php
-$variable = new VendorName\Skeleton();
-echo $variable->echoPhrase('Hello, VendorName!');
+public array $filters = [
+    'name' => ContainsFilter::class,
+];
+
+// ?name=John - it will search all rows which are contains John string.
+// it can be case-insensitive if table column's collation ends with _ci suffix. 
 ```
 
-## Testing
+### ContainsInFilter
 
-```bash
-composer test
+This filter can be used if we need to filter for value can be found on multiple columns.
+Usually it used then user types something in one search input, but we must filter rows 
+where that value can be found on one of the following columns. 
+
+```php
+public array $filters = [
+    'search' => [ContainsInFilter::class, ['name', 'email', 'role']],
+];
+
+// ?search=John - it will search all rows which are contains John string in name, email or role columns.
+// it can be case-insensitive if table column's collation ends with _ci suffix. 
 ```
 
-## Changelog
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+### LikeFilter
 
-## Contributing
+This filter is similar to ContainsFilter, but contains will find in any part of string, 
+but with like filter, you can specify in query string via * which part of string sould contain a value. 
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+```php
+public array $filters = [
+    'name' => LikeFilter::class,
+];
 
-## Security Vulnerabilities
+// ?name=John* - it will search all rows which are starting with John
+// ?name=*John - it will search all rows which are ending with John
+// it can be case-insensitive if table column's collation ends with _ci suffix. 
+```
 
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+### TrashedFilter
 
-## Credits
+This filter is using to filter deleted rows if model uses SoftDeletes trait. 
 
-- [:author_name](https://github.com/:author_username)
-- [All Contributors](../../contributors)
+```php
+public array $filters = [
+    'trashed' => TrashedFilter::class,
+];
 
-## License
+// ?trashed=with - it will search all rows even soft deleted rows
+// ?trashed=only - it will search only soft deleted rows
+```
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+### DateFilter
+
+This filter is using for filter dates. 
+
+```php
+public array $filters = [
+    'trashed' => TrashedFilter::class,
+];
+
+// ?created_at=2024-03-01 - it will filter all rows which are created exactly at selected date  
+// ?created_at=2024-03-01, - it will filter all rows where created_at field more or equal to selected date
+// ?created_at=,2024-03-01 - it will filter all rows where created_at field less or equal to selected date
+// ?created_at=2024-03-01,2024-03-16 - it will filter all rows where created_at field is between two selected dates including both dates
+```
+
+---
+
+## TODO
+- test sorting
+- filter relations
+- sort relations
+- include relations into response
