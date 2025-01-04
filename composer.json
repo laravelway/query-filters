@@ -1,7 +1,7 @@
 {
     "name": "laravelway/query-filters",
     "description": "Laravel package for filtering models via query string",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "keywords": [
         "laravelway",
         "laravel",
@@ -83,6 +83,6 @@
             }
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }
