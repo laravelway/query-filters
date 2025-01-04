@@ -32,7 +32,7 @@ function writeln(string $line): void
 
 function run(string $command): string
 {
-    return trim((string) shell_exec($command));
+    return mb_trim((string) shell_exec($command));
 }
 
 function str_after(string $subject, string $search): string
@@ -48,7 +48,7 @@ function str_after(string $subject, string $search): string
 
 function slugify(string $subject): string
 {
-    return mb_strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $subject), '-'));
+    return mb_strtolower(mb_trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $subject), '-'));
 }
 
 function title_case(string $subject): string
@@ -173,12 +173,12 @@ function getGitHubApiEndpoint(string $endpoint): ?stdClass
 
 function searchCommitsForGitHubUsername(): string
 {
-    $authorName = mb_strtolower(trim(shell_exec('git config user.name')));
+    $authorName = mb_strtolower(mb_trim(shell_exec('git config user.name')));
 
     $committersRaw = shell_exec("git log --author='@users.noreply.github.com' --pretty='%an:%ae' --reverse");
     $committersLines = explode("\n", $committersRaw ?? '');
     $committers = array_filter(array_map(function ($line) use ($authorName) {
-        $line = trim($line);
+        $line = mb_trim($line);
         [$name, $email] = explode(':', $line) + [null, null];
 
         return [
@@ -224,7 +224,7 @@ function guessGitHubUsername(): string
 
     // fall back to using the username from the git remote
     $remoteUrl = shell_exec('git config remote.origin.url') ?? '';
-    $remoteUrlParts = explode('/', str_replace(':', '/', trim($remoteUrl)));
+    $remoteUrlParts = explode('/', str_replace(':', '/', mb_trim($remoteUrl)));
 
     return $remoteUrlParts[1] ?? '';
 }
@@ -232,7 +232,7 @@ function guessGitHubUsername(): string
 function guessGitHubVendorInfo($authorName, $username): array
 {
     $remoteUrl = shell_exec('git config remote.origin.url') ?? '';
-    $remoteUrlParts = explode('/', str_replace(':', '/', trim($remoteUrl)));
+    $remoteUrlParts = explode('/', str_replace(':', '/', mb_trim($remoteUrl)));
 
     if (! isset($remoteUrlParts[1])) {
         return [$authorName, $username];
@@ -340,7 +340,7 @@ if (! $useLaravelPint) {
 }
 
 if (! $usePhpStan) {
-    safeUnlink(__DIR__ . '/phpstan.neon.dist');
+    safeUnlink(__DIR__.'/phpstan.neon.dist');
     safeUnlink(__DIR__.'/phpstan-baseline.neon');
     safeUnlink(__DIR__.'/.github/workflows/phpstan.yml');
 
